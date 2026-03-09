@@ -1,0 +1,40 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Pytest / testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data (large files — keep structure, ignore contents)
+data/*.pkl
+data/*.csv
+data/*.parquet
+!data/.gitkeep

@@ -1,0 +1,30 @@
+[project]
+name = "InsuranceSimulator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "catboost>=1.2.8",
+    "ipykernel>=6.29.5",
+    "numpy>=2.2.6",
+    "pandas>=2.2.3",
+    "pytest>=8.3.5",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.15.3",
+    "seaborn>=0.13.2",
+    "interpret>=0.6.12",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"] # Make sure setuptools is available for building
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"] 
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff>=0.11.11",
+]

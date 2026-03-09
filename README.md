@@ -1,5 +1,7 @@
 # Claims Simulator
 
+*** NOT UP TO DATE ***
+
 A synthetic data generation system for creating realistic insurance claims datasets with features, latent risk variables, and simulated claim events.
 
 ## Project Structure

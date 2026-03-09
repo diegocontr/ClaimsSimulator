@@ -1,326 +1,208 @@
 # Claims Simulator
 
-*** NOT UP TO DATE ***
+Synthetic insurance data generation for:
+- feature simulation with explicit dependencies,
+- formula-based latent risk construction,
+- piecewise claim-event simulation (frequency),
+- optional claim severity generation,
+- feature diagnostics and model evaluation metrics.
 
-A synthetic data generation system for creating realistic insurance claims datasets with features, latent risk variables, and simulated claim events.
+Current package version in code: `0.2.0` (`src/claimssimulator/__init__.py`).
 
-## Project Structure
+## What Is In This Version
 
-```
-├── src/                           # Source code
-│   ├── __init__.py               # Package initialization
-│   ├── distributions.py          # Distribution classes and factory
-│   ├── feature_definition.py     # Feature specification and generation
-│   ├── latent_risk_builder.py    # Latent risk component builder
-│   ├── claims_simulator.py       # Claims and severity simulation (future)
-│   └── ...
-├── notebooks/                    # Jupyter notebooks for exploration
-│   └── 01_feature_definition_and_latent_risk.ipynb
-├── tests/                        # Unit tests
-│   ├── test_distributions.py
-│   ├── test_feature_definition.py
-│   ├── test_latent_risk_builder.py
-│   └── ...
-├── data/                         # Generated datasets
-├── pyproject.toml               # Project configuration
-└── README.md                    # This file
-```
-
-## Features
-
-### 1. **Distribution System** (`distributions.py`)
-
-Flexible distribution definitions supporting:
-- **Normal (Gaussian)**: `('normal', {'loc': mean, 'scale': std})`
-- **Log-Normal**: `('lognormal', {'mean': mean, 'sigma': sigma})`
-- **Gamma**: `('gamma', {'shape': k, 'scale': theta})`
-- **Uniform**: `('uniform', {'low': a, 'high': b})`
-- **Negative Binomial**: `('negative_binomial', {'n': n, 'p': p})`
-- **Poisson**: `('poisson', {'lam': lambda})`
-- **Exponential**: `('exponential', {'scale': scale})`
-- **Categorical**: `('categorical', {'probabilities': [...], 'labels': [...]})`
-
-### 2. **Feature Definition** (`feature_definition.py`)
-
-Define and generate synthetic features using a specification dictionary with optional transformations:
-
-```python
-from claimsimulator.feature_definition import FeatureDefinition
-import numpy as np
-
-feature_spec = {
-    # Basic feature
-    'income': ('normal', {'loc': 50000, 'scale': 15000}),
-    
-    # Simple transformation - shift to ensure age >= 18
-    'age': ('lognormal', {'mean': 3.5, 'sigma': 0.2}, lambda x: x + 18),
-    
-    # Dependent transformation - clip experience to age - 18
-    'driving_experience_years': ('gamma', {'shape': 2, 'scale': 5}, 
-                                 (lambda x, age: np.clip(x, 0, age - 18), ('age',))),
-    
-    # Derived feature - pure function of other features (no distribution)
-    'age_at_first_license': (lambda age, exp: age - exp, ('age', 'driving_experience_years')),
-    
-    # Categorical feature
-    'vehicle_type': ('categorical', {
-        'probabilities': [0.5, 0.3, 0.2],
-        'labels': ['Sedan', 'SUV', 'Truck']
-    }),
-}
-
-feature_gen = FeatureDefinition(feature_spec)
-features_df = feature_gen.generate(n_samples=5000, random_seed=42)
-```
-
-**Feature Specification Formats:**
-- **Basic**: `'name': ('distribution', {args})`
-- **Transformed**: `'name': ('distribution', {args}, transform_func)`
-- **Dependent**: `'name': ('distribution', {args}, (transform_func, ('dep1', 'dep2')))`
-- **Derived**: `'name': (transform_func, ('dep1', 'dep2'))` - pure function, no distribution
-
-### 3. **Latent Risk Builder** (`latent_risk_builder.py`)
-
-Compose latent risk variables from multiple feature-based components:
-
-```python
-from claimsimulator.latent_risk_builder import LatentRiskBuilder
-
-# Define risk components
-def age_risk(df):
-    age = df['age'].values
-    risk = np.where(age < 25, 1.8, np.where(age < 60, 1.0, 1.2))
-    return risk
-
-def experience_risk(df):
-    exp = df['driving_experience_years'].values
-    return np.exp(-0.08 * exp)
-
-# Build composite risk
-risk_builder = LatentRiskBuilder(normalize_weights=True)
-risk_builder.add_component('age_risk', ['age'], age_risk, weight=0.5)
-risk_builder.add_component('exp_risk', ['experience'], experience_risk, weight=0.5)
-
-risk_df = risk_builder.build(features_df)
-```
+- Dataclass-based feature specifications (no tuple/dict DSL required).
+- Dependent distribution parameters (for example `Normal(loc="mu")`).
+- `FormulaFeature` with scalar placeholders and categorical term syntax.
+- `CorrelatedNormals` for multivariate normal feature blocks.
+- Claims simulation with:
+  - `Poisson`, `NegativeBinomialMixture`, `NegativeBinomialMeanVar`, or custom generators,
+  - `claim` and `contract_end` renewal modes,
+  - optional time-varying parameters via callables,
+  - optional severity sampling (`claim_cost`).
+- Visualization helpers for histogram and feature-association analysis.
+- Built-in metrics for frequency/severity model evaluation.
 
 ## Installation
+
+From the repository root:
+
+```bash
+pip install -e .
+```
+
+If you only want runtime dependencies from the pinned list:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Usage
+Requirements:
+- Python `>=3.12`
 
-### Quick Start
-
-See the notebook `notebooks/01_feature_definition_and_latent_risk.ipynb` for a comprehensive example.
-
-### Example: Generate Features and Calculate Risk
+## Quick Start
 
 ```python
 import numpy as np
-import pandas as pd
-from claimsimulator.feature_definition import FeatureDefinition
-from claimsimulator.latent_risk_builder import LatentRiskBuilder
+from claimsimulator import (
+    FeatureDefinition,
+    Feature,
+    DerivedFeature,
+    FormulaFeature,
+    Transform,
+    DependentTransform,
+    Normal,
+    Gamma,
+    Uniform,
+    Categorical,
+)
 
-# 1. Define features
-feature_spec = {
-    'age': ('normal', {'loc': 35, 'scale': 15}),
-    'experience': ('gamma', {'shape': 2, 'scale': 5}),
-}
+specs = [
+    Feature("age", Normal(loc=35, scale=12), Transform(lambda x: np.clip(x, 18, 95))),
+    Feature("experience", Gamma(shape=2.0, scale=6.0), DependentTransform(
+        lambda x, age: np.clip(x, 0, age - 18), dependencies=("age",)
+    )),
+    Feature("vehicle_type", Categorical(
+        probabilities=[0.55, 0.30, 0.15], labels=["sedan", "suv", "truck"]
+    )),
+    DerivedFeature(
+        "age_at_first_license",
+        function=lambda age, exp: age - exp,
+        dependencies=("age", "experience"),
+    ),
+    FormulaFeature(
+        "risk",
+        formula="{b_age} * age + {b_exp} * experience + vehicle_type[b_vehicle]",
+        parameters={
+            "b_age": 0.015,
+            "b_exp": -0.02,
+            "b_vehicle": {"sedan": 0.00, "suv": 0.20, "truck": 0.40},
+        },
+        mean=0.5,
+    ),
+]
 
-# 2. Generate features
-feature_gen = FeatureDefinition(feature_spec)
-features_df = feature_gen.generate(n_samples=1000, random_seed=42)
-
-# 3. Define risk components
-def age_component(df):
-    age = df['age'].values if isinstance(df, pd.DataFrame) else df.values
-    return np.where(age < 25, 1.5, np.where(age < 60, 1.0, 1.2))
-
-def experience_component(df):
-    exp = df['experience'].values if isinstance(df, pd.DataFrame) else df.values
-    return np.exp(-0.1 * exp)
-
-# 4. Build latent risk
-builder = LatentRiskBuilder(normalize_weights=True)
-builder.add_component('age_risk', ['age'], age_component, weight=0.6)
-builder.add_component('exp_risk', ['experience'], experience_component, weight=0.4)
-
-risk_df = builder.build(features_df)
-
-# 5. Results
-print(risk_df[['age', 'experience', 'age_risk', 'exp_risk', 'latent_risk']].head())
+features = FeatureDefinition(specs).generate(n_samples=5000, random_seed=42)
+print(features.head())
 ```
 
-## API Reference
+## Claims Simulation
 
-### FeatureDefinition
-
-```python
-FeatureDefinition(features_spec: Dict[str, Tuple[str, dict]])
-    .generate(n_samples: int, random_seed: int = None) -> pd.DataFrame
-    .get_feature_names() -> List[str]
-```
-
-### LatentRiskBuilder
+`ClaimsSimulator` converts one row per contract into piecewise rows with exposure and claim indicators.
 
 ```python
-LatentRiskBuilder(normalize_weights: bool = True)
-    .add_component(name: str, function: str, parameters: Dict[str, float],
-                   weight: float = 1.0, mean: float = None) -> LatentRiskBuilder
-    .build(features_df: pd.DataFrame) -> pd.DataFrame
-    .get_component_names() -> List[str]
-```
+from claimsimulator import ClaimsSimulator
 
-**Parameters:**
-- `function`: String formula with placeholders like `"{beta} * age + {gamma} * experience"`
-- `parameters`: Dictionary mapping parameter names to values, e.g., `{'beta': 0.02, 'gamma': -0.01}`
-- `mean`: Optional target mean for renormalization of the component
-- `weight`: Weight for the component (informational, not used for aggregation)
+risk_df = features[["risk"]].copy()
+risk_df["duration"] = 3.0
 
-**Note:** `build()` creates only individual risk components. Each component represents a different type of risk that can be used independently in your models.
-
-### ClaimsSimulator
-
-```python
-ClaimsSimulator(generator: Union[str, Callable] = 'Poisson',
-                param_columns: Optional[Dict[str, str]] = None,
-                claim_column: str = 'claim',
-                time_to_simulate: Union[str, float] = 'contract_duration_years',
-                max_exposure: float = 1.0,
-                exposure_column: str = 'exposure',
-                claim_counter: Optional[str] = None,
-                renewal_mode: Literal['claim', 'contract_end'] = 'claim',
-                random_seed: Optional[int] = None)
-    .simulate(risk_df: pd.DataFrame) -> pd.DataFrame
-```
-
-**Constructor Parameters:**
-- `generator`: Distribution for generating claims. Can be:
-  - `'Poisson'`: Exponential inter-arrival times (default)
-  - `'NegativeBinomialMixture'`: Gamma-Poisson mixture (unobserved heterogeneity)
-  - `'NegativeBinomialMeanVar'`: Proper NB where E[claims/exposure] = rate
-  - `Callable`: Custom function with signature `(params: Dict[str, float]) -> float` that returns time to next claim
-- `param_columns`: Dict mapping parameter names to column names:
-  - Poisson: `{'rate': 'column_name'}`
-  - NegativeBinomialMixture: `{'rate': 'col1', 'dispersion': 'col2'}`
-  - NegativeBinomialMeanVar: `{'rate': 'col1', 'overdispersion': 'col2'}`
-  - Custom callable: depends on your function's requirements (must be provided)
-- `claim_column`: Name for output claim indicator column (default 'claim')
-- `time_to_simulate`: Column name or fixed value for contract duration (default 'contract_duration_years')
-- `max_exposure`: Maximum exposure time per row (default 1.0 year)
-- `exposure_column`: Name for output exposure column (default 'exposure')
-- `claim_counter`: If provided, adds a column counting claims before current row (default None)
-- `renewal_mode`: Controls how contracts split into images/rows (default 'claim'):
-  - `'claim'`: Contract renews immediately after each claim. After a claim at time t, starts new row from time t.
-  - `'contract_end'`: Contract renews at fixed max_exposure intervals. Multiple claims within an interval create multiple rows, but intervals always complete to max_exposure boundaries (or total_duration).
-- `random_seed`: Random seed for reproducibility
-- `exposure_column`: Name for output exposure column (default 'exposure')
-- `claim_counter`: If provided, adds a column counting claims before current row (default None)
-- `random_seed`: Random seed for reproducibility
-
-**Example Usage:**
-```python
-# Poisson process with claim counter
 sim = ClaimsSimulator(
-    generator='Poisson',
-    param_columns={'rate': 'risk'},
-    time_to_simulate='duration',
+    generator="Poisson",
+    param_columns={"rate": "risk"},
+    time_to_simulate="duration",
     max_exposure=1.0,
-    claim_counter='past_claims'  # Track number of previous claims
+    renewal_mode="claim",
+    claim_counter="n_previous_claims",
+    random_seed=42,
 )
-claims_df = sim.simulate(risk_df)
 
-# NegativeBinomialMeanVar (overdispersion with E[claims/exposure] = rate)
-sim_nb = ClaimsSimulator(
-    generator='NegativeBinomialMeanVar',
-    param_columns={'rate': 'risk', 'overdispersion': 'overdisp'},
-    time_to_simulate='duration',
-    max_exposure=1.0
-)
-claims_df_nb = sim_nb.simulate(risk_df)
-
-# Contract renewal at fixed intervals (contract_end mode)
-sim_contract_end = ClaimsSimulator(
-    generator='Poisson',
-    param_columns={'rate': 'risk'},
-    time_to_simulate='duration',
-    max_exposure=1.0,
-    renewal_mode='contract_end',  # Renews at max_exposure boundaries
-    claim_counter='past_claims'
-)
-claims_df_contract_end = sim_contract_end.simulate(risk_df)
-
-# Custom generator function (e.g., Weibull distribution)
-def weibull_time_generator(params):
-    """Returns time to next claim from Weibull distribution"""
-    import numpy as np
-    shape = params['shape']
-    scale = params['scale']
-    return np.random.weibull(shape) * scale
-
-risk_df['weibull_shape'] = 2.0
-risk_df['weibull_scale'] = 3.0
-
-sim_custom = ClaimsSimulator(
-    generator=weibull_time_generator,
-    param_columns={'shape': 'weibull_shape', 'scale': 'weibull_scale'},
-    time_to_simulate='duration',
-    max_exposure=1.0
-)
-claims_df_custom = sim_custom.simulate(risk_df)
+claims = sim.simulate(risk_df)
+print(claims[["contract_id", "start_time", "end_time", "exposure", "claim"]].head())
 ```
 
-**Output Format (for Piecewise Exponential Models):**
-- Each contract generates multiple rows (images) based on claim events
-- `exposure`: Time exposed to risk in this interval
-- `claim`: 1 if claim occurred at end of interval, 0 otherwise
-- `start_time`, `end_time`: Time boundaries of the interval
-- `contract_id`: Identifier to track original contracts
-- If claim occurs, a new row starts immediately after
+Core output columns:
+- `exposure` (or your custom `exposure_column`)
+- `claim` (or your custom `claim_column`)
+- `start_time`, `end_time`
+- `contract_id`
+- optional `claim_counter` column
 
-## Testing
+Optional severity model:
 
-Run the test suite:
-
-```bash
-pytest tests/
+```python
+sim_cost = ClaimsSimulator(
+    generator="Poisson",
+    param_columns={"rate": "risk"},
+    time_to_simulate="duration",
+    severity_column="expected_claim_cost",
+    severity_cv=0.4,
+    claim_cost_column="claim_cost",
+    random_seed=42,
+)
 ```
 
-Run specific test file:
+Optional time-varying parameter example:
 
-```bash
-pytest tests/test_distributions.py -v
-pytest tests/test_feature_definition.py -v
-pytest tests/test_latent_risk_builder.py -v
+```python
+sim_tv = ClaimsSimulator(
+    generator="Poisson",
+    param_columns={"rate": lambda t: 0.1 + 0.02 * t},
+    time_to_simulate=2.0,
+    random_seed=42,
+)
 ```
 
-## Architecture
+## Visualization Utilities
 
-The project follows a modular design:
+```python
+from claimsimulator import compute_feature_analysis, visualize_features
 
-1. **Distributions Layer**: Handles all probability distributions
-2. **Feature Layer**: Generates synthetic features from specifications
-3. **Risk Layer**: Computes latent risk from features
-4. **Simulation Layer**: (Coming soon) Simulates claim events based on risk
+analysis = compute_feature_analysis(features, feature="risk", association="spearman")
+print(analysis.correlations.head())
 
-## Future Work
+fig = visualize_features(features, features=["age", "experience", "risk"], vlines=["mean", "perc95"])
+```
 
-- Claims event simulation based on latent risk
-- Claim severity modeling
-- Claims simulator integration
-- Advanced risk modeling techniques
-- Documentation and examples expansion
+Supported association keywords:
+- `pearson`
+- `spearman`
+- `kendall`
+- `mutual_info`
+- `hoeffding`
 
-## Installation & Requirements
+## Metrics
 
-- Python 3.12+
-- NumPy >= 2.2.6
-- Pandas >= 2.2.3
-- SciPy >= 1.15.3
-- Scikit-learn >= 1.6.1 (optional, for future modeling)
+Available top-level metrics:
+- `gini`
+- `poisson_deviance_ratio`
+- `gamma_deviance_ratio`
+- `calibration_quality_ratio`
+- `mae`, `rmse`, `mape`, `r2`
 
-See `pyproject.toml` for complete dependency list.
+Example:
+
+```python
+from claimsimulator import gini, poisson_deviance_ratio
+
+score_gini = gini(t=y_true, p=y_pred, w=weights)
+score_pdr = poisson_deviance_ratio(t=y_true, p=y_pred, w=weights)
+```
+
+## Project Structure
+
+```text
+ClaimsSimulator/
+|-- src/claimssimulator/
+|   |-- __init__.py
+|   |-- metrics.py
+|   |-- features/
+|   |   |-- feature_spec.py
+|   |   `-- feature_definition.py
+|   |-- simulation/
+|   |   `-- claims_simulator.py
+|   `-- visualization/
+|       `-- feature_visualization.py
+|-- tests/
+|-- notebooks/
+|-- pyproject.toml
+`-- README.md
+```
+
+
+## Notebooks
+
+The `notebooks/` folder contains worked examples for:
+- feature definition and latent risk construction,
+- exposure-aware synthetic datasets,
+- model training workflows.
 

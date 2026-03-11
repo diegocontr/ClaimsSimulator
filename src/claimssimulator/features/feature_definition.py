@@ -2,7 +2,7 @@
 Feature definitions for synthetic data generation.
 
 Accepts a list of Feature / DerivedFeature dataclasses (defined in
-``claimsimulator.feature_spec``) and generates a pandas DataFrame of
+``claimssimulator.feature_spec``) and generates a pandas DataFrame of
 synthetic data.
 """
 
@@ -47,7 +47,7 @@ class FeatureDefinition:
 
     Examples
     --------
-    >>> from claimsimulator.feature_spec import *
+    >>> from claimssimulator.feature_spec import *
     >>> gen = FeatureDefinition([
     ...     Feature('age', LogNormal(mean=3.5, sigma=0.2),
     ...             Transform(lambda x: x + 18)),

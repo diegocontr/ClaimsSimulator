@@ -1,4 +1,4 @@
-"""Tests for claimsimulator.visualization.feature_visualization."""
+"""Tests for claimssimulator.visualization.feature_visualization."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from claimsimulator.visualization.feature_visualization import (
+from claimssimulator.visualization.feature_visualization import (
     ASSOCIATION_LABELS,
     FeatureAnalysis,
     HistogramData,

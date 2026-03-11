@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from claimsimulator.features.feature_definition import FeatureDefinition
-from claimsimulator.features.feature_spec import (
+from claimssimulator.features.feature_definition import FeatureDefinition
+from claimssimulator.features.feature_spec import (
     Feature, FormulaFeature, Uniform, Categorical,
 )
 

@@ -44,7 +44,7 @@ Requirements:
 
 ```python
 import numpy as np
-from claimsimulator import (
+from claimssimulator import (
     FeatureDefinition,
     Feature,
     DerivedFeature,
@@ -91,7 +91,7 @@ print(features.head())
 `ClaimsSimulator` converts one row per contract into piecewise rows with exposure and claim indicators.
 
 ```python
-from claimsimulator import ClaimsSimulator
+from claimssimulator import ClaimsSimulator
 
 risk_df = features[["risk"]].copy()
 risk_df["duration"] = 3.0
@@ -145,7 +145,7 @@ sim_tv = ClaimsSimulator(
 ## Visualization Utilities
 
 ```python
-from claimsimulator import compute_feature_analysis, visualize_features
+from claimssimulator import compute_feature_analysis, visualize_features
 
 analysis = compute_feature_analysis(features, feature="risk", association="spearman")
 print(analysis.correlations.head())
@@ -172,7 +172,7 @@ Available top-level metrics:
 Example:
 
 ```python
-from claimsimulator import gini, poisson_deviance_ratio
+from claimssimulator import gini, poisson_deviance_ratio
 
 score_gini = gini(t=y_true, p=y_pred, w=weights)
 score_pdr = poisson_deviance_ratio(t=y_true, p=y_pred, w=weights)

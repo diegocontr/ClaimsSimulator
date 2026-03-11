@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from claimsimulator.features.feature_definition import FeatureDefinition
-from claimsimulator.features.feature_spec import (
+from claimssimulator.features.feature_definition import FeatureDefinition
+from claimssimulator.features.feature_spec import (
     Feature,
     DerivedFeature,
     Normal,

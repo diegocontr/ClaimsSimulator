@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from claimsimulator.simulation.claims_simulator import ClaimsSimulator
+from claimssimulator.simulation.claims_simulator import ClaimsSimulator
 
 
 def test_poisson_claims_basic():

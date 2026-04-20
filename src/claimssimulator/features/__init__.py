@@ -24,6 +24,7 @@ from .feature_spec import (
     Feature,
     DerivedFeature,
     FormulaFeature,
+    NoisyFormulaFeature,
     CorrelatedNormals,
     FeatureSpec,
     # Helpers
@@ -54,6 +55,7 @@ __all__ = [
     "Feature",
     "DerivedFeature",
     "FormulaFeature",
+    "NoisyFormulaFeature",
     "CorrelatedNormals",
     "FeatureSpec",
     # Helpers

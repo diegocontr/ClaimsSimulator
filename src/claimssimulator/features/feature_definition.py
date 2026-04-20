@@ -15,6 +15,7 @@ from .feature_spec import (
     Feature,
     DerivedFeature,
     FormulaFeature,
+    NoisyFormulaFeature,
     CorrelatedNormals,
     FeatureSpec,
     Normal,
@@ -294,6 +295,20 @@ class FeatureDefinition:
                     # 3. Build temp DataFrame and evaluate
                     tmp_df = pd.DataFrame({**data, **cat_arrays})
                     values = tmp_df.eval(resolved).values
+
+                    # 4. Inject noise if this is a NoisyFormulaFeature
+                    if isinstance(spec, NoisyFormulaFeature) and spec.noise_ratio > 0.0:
+                        signal_std = values.std()
+                        if signal_std > 0:
+                            values = values / signal_std   # standardise signal to std=1
+                        noise = rng.standard_normal(len(values))
+                        values = (
+                            np.sqrt(1.0 - spec.noise_ratio) * values
+                            + np.sqrt(spec.noise_ratio) * noise
+                        )
+                        if signal_std > 0:
+                            values = values * signal_std   # restore original scale
+
                     if target_mean is not None:
                         current_mean = values.mean()
                         if current_mean != 0:

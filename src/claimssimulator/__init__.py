@@ -26,6 +26,7 @@ from .features import (
     Feature,
     DerivedFeature,
     FormulaFeature,
+    NoisyFormulaFeature,
     CorrelatedNormals,
     # Core classes
     FeatureDefinition,
@@ -70,6 +71,7 @@ __all__ = [
     'Feature',
     'DerivedFeature',
     'FormulaFeature',
+    'NoisyFormulaFeature',
     'CorrelatedNormals',
     # Core classes
     'FeatureDefinition',

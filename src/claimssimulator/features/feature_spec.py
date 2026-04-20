@@ -559,7 +559,57 @@ class CorrelatedNormals:
             )
 
 
-FeatureSpec = Feature | DerivedFeature | FormulaFeature | CorrelatedNormals
+@dataclass(frozen=True)
+class NoisyFormulaFeature(FormulaFeature):
+    """A :class:`FormulaFeature` with additive unobserved heterogeneity.
+
+    Extends ``FormulaFeature`` by injecting a per-row Gaussian noise term
+    into the log-risk **before** the mean rescaling.  This models the
+    fraction of risk that cannot be captured by any observable feature —
+    useful for studying credibility, a-posteriori rating, and the value
+    of experience data.
+
+    The final value is computed as:
+
+    .. math::
+
+        \\text{result} = \\sqrt{1 - r} \\cdot \\hat{s} + \\sqrt{r} \\cdot \\varepsilon
+
+    where :math:`\\hat{s}` is the standardised formula signal,
+    :math:`\\varepsilon \\sim \\mathcal{N}(0,1)` is independent noise, and
+    :math:`r` = ``noise_ratio`` ∈ [0, 1].  The combined value has the same
+    variance as the pure signal regardless of ``noise_ratio``.  If ``mean``
+    is set, the result is rescaled so that its sample mean equals ``mean``.
+
+    Parameters
+    ----------
+    noise_ratio : float
+        Fraction of variance coming from unobserved noise.
+        ``0.0`` → identical to ``FormulaFeature`` (no noise).
+        ``1.0`` → pure noise, signal is ignored.
+        Typical values: ``0.3`` – ``0.6``.
+
+    Examples
+    --------
+    >>> NoisyFormulaFeature(
+    ...     name='frequency_risk',
+    ...     formula='{beta_age} * age + {beta_exp} * driving_experience_years',
+    ...     parameters={'beta_age': 0.02, 'beta_exp': -0.03},
+    ...     mean=0.25,
+    ...     noise_ratio=0.4,   # 40 % of variance is unobserved
+    ... )
+    """
+
+    noise_ratio: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.noise_ratio <= 1.0):
+            raise ValueError(
+                f"noise_ratio must be in [0, 1], got {self.noise_ratio}"
+            )
+
+
+FeatureSpec = Feature | DerivedFeature | FormulaFeature | NoisyFormulaFeature | CorrelatedNormals
 
 
 def get_distribution_dependencies(dist: Distribution) -> set[str]:
